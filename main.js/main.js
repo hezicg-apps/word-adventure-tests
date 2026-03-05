@@ -34,23 +34,29 @@ function saveToLocal() {
 function loadFromLocal() {
     const params = new URLSearchParams(window.location.search);
     const sharedData = params.get('w');
+    
     if (sharedData) {
         try {
             const decoded = decodeURIComponent(escape(atob(sharedData)));
-            state.inputText = decoded;
-            processInput(false); 
-            state.screen = 'welcome';
-            window.history.replaceState({}, document.title, window.location.pathname);
-            return;
-        } catch(e) { console.error("Error decoding share link"); }
+            if (decoded && decoded.includes('-')) {
+                state.inputText = decoded;
+                processInput(false); 
+                state.masteryScore = 0; 
+                state.screen = 'flashcards'; // מעבר ישיר ללימוד כדי שלא ייראה "נעול"
+                window.history.replaceState({}, document.title, window.location.pathname);
+                render();
+                return;
+            }
+        } catch(e) { console.error("Error decoding share link", e); }
     }
+    
     const savedWords = localStorage.getItem('wm_words');
     if (savedWords) {
         state.words = JSON.parse(savedWords);
         state.inputText = localStorage.getItem('wm_input') || '';
         state.masteryScore = parseFloat(localStorage.getItem('wm_mastery')) || 0;
         state.listName = localStorage.getItem('wm_listName') || 'אוצר המילים שלי';
-        state.screen = 'menu';
+        state.screen = state.masteryScore >= 70 ? 'menu' : 'flashcards';
     }
 }
 
@@ -61,6 +67,8 @@ function shareList() {
         const shareUrl = `${window.location.origin}${window.location.pathname}?w=${encodedData}`;
         navigator.clipboard.writeText(shareUrl).then(() => {
             alert("הקישור הועתק! 🚀");
+        }).catch(() => {
+            prompt("העתיקו את הקישור מכאן:", shareUrl);
         });
     } catch(e) { alert("שגיאה ביצירת הקישור."); }
 }
@@ -93,43 +101,38 @@ function render() {
     }
 }
 
+// עדכון פונקציית הכותרת - מודגשת (Bold)
 function renderHeader(subtext) {
     return `
         <div class="mb-4">
-            <h1 class="text-2xl font-black text-gray-800">${state.listName}</h1>
+            <h1 class="text-3xl font-black text-gray-800 drop-shadow-sm">${state.listName}</h1>
             ${subtext ? `<p class="text-lg font-bold text-blue-600 mt-1">${subtext}</p>` : ''}
         </div>`;
 }
 
 function renderWelcome(app) {
     const isDark = state.nightMode;
-    // הגדרות עיצוב מותאמות למצב לילה/יום
     const cardClass = isDark ? 'bg-transparent border-gray-700 shadow-none' : 'bg-white border-blue-400 shadow-xl';
     const titleColor = isDark ? 'text-yellow-500' : 'text-blue-600';
     const stepBoxBase = isDark ? 'bg-transparent border-gray-700' : 'p-4 rounded-2xl border-r-8 shadow-sm';
-    const stepTextColor = isDark ? 'text-yellow-500' : '';
 
     app.innerHTML = `
         <div class="text-center space-y-6 w-full max-w-md animate-fade-in mt-6">
             <div class="${cardClass} p-6 rounded-[2.5rem] border-4 welcome-card">
                 <p class="text-4xl font-black ${titleColor} mb-6 border-b-2 pb-4">ברוכים הבאים! 👋</p>
                 <div class="space-y-4 text-right font-bold">
-                    
                     <div class="${stepBoxBase} ${isDark ? '' : 'bg-blue-50 border-blue-500'}">
                         <p class="text-xl font-black ${isDark ? 'text-yellow-500' : 'text-blue-900'} mb-1">📝 שלב 1: הזנה</p>
                         <p class="text-lg ${isDark ? 'text-yellow-400/90' : 'text-gray-800'}">מדביקים רשימת מילים.</p>
                     </div>
-
                     <div class="${stepBoxBase} ${isDark ? '' : 'bg-green-50 border-green-500'}">
                         <p class="text-xl font-black ${isDark ? 'text-yellow-500' : 'text-green-900'} mb-1">🎴 שלב 2: תרגול</p>
                         <p class="text-lg ${isDark ? 'text-yellow-400/90' : 'text-gray-800'}">לומדים ובודקים ידע.</p>
                     </div>
-
                     <div class="${stepBoxBase} ${isDark ? '' : 'bg-purple-50 border-purple-500'}">
                         <p class="text-xl font-black ${isDark ? 'text-yellow-500' : 'text-purple-900'} mb-1">🎮 שלב 3: משחקים</p>
                         <p class="text-lg ${isDark ? 'text-yellow-400/90' : 'text-gray-800'}">משחקים באנגלית!</p>
                     </div>
-
                 </div>
             </div>
             <button onclick="state.screen='input'; render()" class="bg-blue-600 text-white px-8 py-5 rounded-full text-2xl font-black w-full shadow-lg active:scale-95 transition-transform">בואו נתחיל!</button>
@@ -247,6 +250,7 @@ function renderMenu(app) {
         </div>`;
 }
 
+// --- משחקים ---
 function startMemory() {
     state.screen = 'memory'; state.winner = null;
     const pairsCount = Math.min(state.words.length, 8);
@@ -391,18 +395,15 @@ function renderWordQuest(app) {
     }
 
     const wordLen = w.target.length;
-    // התאמה למילים קצרות: ריבועים גדולים יותר (62px במקום 55px)
     const baseBoxSize = wordLen <= 5 ? 62 : Math.min(Math.floor((window.innerWidth * 0.9) / wordLen), 55);
     const gapSize = wordLen > 10 ? 2 : 5;
     
     let fontSizeClass = 'text-2xl';
-    // הגדלת הפונט למילים קצרות (text-3xl)
     if (wordLen <= 5) fontSizeClass = 'text-3xl';
     else if (baseBoxSize < 30) fontSizeClass = 'text-[10px]';
     else if (baseBoxSize < 40) fontSizeClass = 'text-sm';
     else if (baseBoxSize < 50) fontSizeClass = 'text-lg';
 
-    // שימוש ב-fit-content למניעת מריחת רווחים
     let gridHtml = `<div class="word-grid" style="grid-template-columns: repeat(${wordLen}, 1fr); width: fit-content; max-width: 100%; gap: ${gapSize}px; margin: 0 auto; display: grid;">`;
     for (let i = 0; i < w.maxAttempts; i++) {
         const g = w.guesses[i];
