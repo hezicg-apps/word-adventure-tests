@@ -704,58 +704,52 @@ window.addEventListener('keydown', (e) => { if (state.screen === 'wordquest' && 
 loadFromLocal();
 render();
 
-window.submitFinalReport = (score) => {
-    console.log("1. פונקציית הדיווח הופעלה עם ציון:", score);
-
+// הגדרה ישירה של הפונקציה
+function submitFinalReport(score) {
+    console.log("--- התחלת דיווח ---");
+    
     const nameInput = document.getElementById('studentName');
     const classInput = document.getElementById('studentClass');
     const reportArea = document.getElementById('reportSection');
-    
-    // בדיקה אם השדות קיימים
+
     if (!nameInput || !classInput) {
-        console.error("שגיאה: לא נמצאו שדות הקלט studentName או studentClass");
+        console.error("לא נמצאו שדות קלט!");
         return;
     }
 
-    const name = nameInput.value.trim();
-    const sClass = classInput.value.trim();
-
-    if (!name || !sClass) {
-        alert("נא למלא שם מלא וכיתה");
-        return;
-    }
-
-    // שלב השמירה - קורה מיד!
+    // שמירת הציון מיד כדי לפתוח משחקים
     state.masteryScore = score;
     saveToLocal();
-    console.log("2. הציון נשמר ב-State ובזיכרון המקומי");
 
-    // שלב הצגת הכפתור - קורה מיד!
+    // שינוי המסך לכפתור המשך - מיד בלי לחכות
     if (reportArea) {
-        console.log("3. מזריק HTML חדש לתוך reportSection");
         reportArea.innerHTML = `
-            <div style="margin-top:20px; padding:20px; background:#f0fff4; border:3px solid #68d391; border-radius:20px; text-align:center;">
-                <h3 style="color:#22543d; font-weight:bold; font-size:1.5rem; margin-bottom:10px;">הדיווח נשלח! ✅</h3>
-                <p style="color:#276749; margin-bottom:20px;">המשחקים פתוחים כעת בתפריט.</p>
+            <div style="background:#e6fffa; padding:20px; border-radius:15px; border:2px solid #38b2ac; margin-top:20px; text-align:center;">
+                <p style="color:#2c7a7b; font-weight:bold; margin-bottom:15px;">הדיווח מוכן לשליחה!</p>
                 <button onclick="state.screen='menu'; render();" 
-                    style="width:100%; padding:20px; background:#3182ce; color:white; border-radius:15px; font-size:1.5rem; font-weight:bold; cursor:pointer; border:none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        style="background:#3182ce; color:white; border:none; padding:15px 30px; border-radius:10px; font-weight:bold; cursor:pointer; width:100%;">
                     המשך למשחקים 🎮
                 </button>
-            </div>`;
-    } else {
-        console.error("שגיאה: לא נמצא אלמנט בשם reportSection בדף");
-        // אם ה-ID לא נמצא, ננסה להעביר לתפריט בכוח אחרי 2 שניות
-        setTimeout(() => { state.screen='menu'; render(); }, 2000);
+            </div>
+        `;
     }
 
-    // שליחה שקטה לגוגל (לא מעכבת את המשתמש)
-    const scriptURL = 'YOUR_GOOGLE_SCRIPT_URL_HERE';
-    const data = { name, class: sClass, unit: state.listName, score: score + "%", date: new Date().toLocaleString('he-IL') };
-
-    console.log("4. מתחיל שליחה שקטה לשרת...");
-    fetch(scriptURL, {
+    // שליחה שקטה ברקע
+    const data = {
+        name: nameInput.value,
+        class: classInput.value,
+        unit: state.listName,
+        score: score + "%"
+    };
+    
+    console.log("שולח נתונים:", data);
+    
+    fetch('YOUR_GOOGLE_SCRIPT_URL_HERE', {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(data)
-    }).catch(e => console.warn("Background fetch error:", e));
-};
+    }).catch(e => console.log("שליחה נכשלה ברקע, לא נורא."));
+}
+
+// חיבור הפונקציה לחלון הגלובלי
+window.submitFinalReport = submitFinalReport;
