@@ -707,15 +707,21 @@ render();
 window.submitFinalReport = (score) => {
     const nameInput = document.getElementById('studentName');
     const classInput = document.getElementById('studentClass');
+    const reportArea = document.getElementById('reportSection');
     
-    const name = nameInput ? nameInput.value : '';
-    const sClass = classInput ? classInput.value : '';
+    const name = nameInput ? nameInput.value.trim() : '';
+    const sClass = classInput ? classInput.value.trim() : '';
 
     if (!name || !sClass) {
-        alert("נא למלא שם מלא וכיתה כדי לשלוח את הדיווח");
+        alert("נא למלא שם מלא וכיתה");
         return;
     }
 
+    // 1. עדכון הציון ושמירה מקומית מיידית (כדי שהמשחקים ייפתחו בכל מקרה)
+    state.masteryScore = score;
+    saveToLocal();
+
+    // 2. הכנת הנתונים לשליחה
     const data = {
         name: name,
         class: sClass,
@@ -726,38 +732,27 @@ window.submitFinalReport = (score) => {
 
     const scriptURL = 'YOUR_GOOGLE_SCRIPT_URL_HERE'; 
 
-    const btn = event.target;
-    btn.innerText = "שולח... ⏳";
-    btn.disabled = true;
+    // 3. הצגת הכפתור הכחול מיד (בלי לחכות לתשובה מהשרת)
+    if (reportArea) {
+        reportArea.innerHTML = `
+            <div class="mt-6 p-6 bg-white rounded-3xl border-4 border-green-100 shadow-md animate-fade-in text-center">
+                <div class="text-4xl mb-2">✅</div>
+                <h3 class="text-xl font-black text-green-700 mb-2">הדיווח נשלח!</h3>
+                <p class="text-gray-600 mb-6 font-bold">כל הכבוד! המשחקים נפתחו.</p>
+                
+                <button onclick="state.screen='menu'; render();" 
+                    class="w-full py-5 bg-blue-600 text-white rounded-2xl text-2xl font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3">
+                    <span>המשך למשחקים</span>
+                    <span class="text-3xl">🎮</span>
+                </button>
+            </div>`;
+    }
 
+    // 4. שליחה שקטה ברקע (גם אם היא נכשלת או נקטעת, התלמיד כבר המשיך)
     fetch(scriptURL, {
         method: 'POST',
         mode: 'no-cors',
         cache: 'no-cache',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
-    }).then(() => {
-        // עדכון ה-State כדי שהמשחקים ייפתחו מיד במעבר
-        state.masteryScore = score;
-        saveToLocal();
-
-        // החלפת אזור הדיווח בטקסט הצלחה + כפתור המשך כחול
-        document.getElementById('reportSection').innerHTML = `
-            <div class="space-y-4 animate-fade-in text-center mt-4">
-                <div class="p-4 bg-green-100 text-green-700 rounded-xl font-bold border-2 border-green-200">
-                    הדיווח נשלח בהצלחה! ✅
-                </div>
-                
-                <button onclick="state.screen='menu'; render();" 
-                    class="w-full py-5 bg-blue-600 text-white rounded-2xl text-2xl font-black shadow-xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2">
-                    <span>המשך למשחקים</span>
-                    <span>🎮</span>
-                </button>
-            </div>`;
-    }).catch((err) => {
-        console.error(err);
-        btn.innerText = "שליחת דיווח 📤";
-        btn.disabled = false;
-        alert("הייתה תקלה בשליחה. נסה שוב.");
-    });
+    }).catch(err => console.warn("Background report failed, but student can continue.", err));
 };
