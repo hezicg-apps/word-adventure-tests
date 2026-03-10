@@ -724,7 +724,6 @@ window.submitFinalReport = (score) => {
         date: new Date().toLocaleString('he-IL')
     };
 
-    // כאן תוכל להדביק את הכתובת האמיתית של ה-Google Script שלך בהמשך
     const scriptURL = 'YOUR_GOOGLE_SCRIPT_URL_HERE'; 
 
     const btn = event.target;
@@ -738,29 +737,27 @@ window.submitFinalReport = (score) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     }).then(() => {
-        // 1. עדכון הציון ב-State ובזיכרון כדי שהמשחקים ייפתחו
+        // עדכון ה-State כדי שהמשחקים ייפתחו מיד במעבר
         state.masteryScore = score;
         saveToLocal();
 
-        // 2. הזרקת ה-HTML החדש הכולל את הכפתור הכחול והבולט
-        const reportArea = document.getElementById('reportSection');
-        reportArea.innerHTML = `
-            <div class="mt-6 p-6 bg-white rounded-3xl border-4 border-green-100 shadow-inner animate-fade-in text-center">
-                <div class="text-4xl mb-2">✅</div>
-                <h3 class="text-xl font-black text-green-700 mb-4">הדיווח נשלח למורה!</h3>
-                <p class="text-gray-600 mb-6 font-bold">עכשיו אפשר ללכת לשחק!</p>
+        // החלפת אזור הדיווח בטקסט הצלחה + כפתור המשך כחול
+        document.getElementById('reportSection').innerHTML = `
+            <div class="space-y-4 animate-fade-in text-center mt-4">
+                <div class="p-4 bg-green-100 text-green-700 rounded-xl font-bold border-2 border-green-200">
+                    הדיווח נשלח בהצלחה! ✅
+                </div>
                 
                 <button onclick="state.screen='menu'; render();" 
-                    class="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] text-2xl font-black shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3">
+                    class="w-full py-5 bg-blue-600 text-white rounded-2xl text-2xl font-black shadow-xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2">
                     <span>המשך למשחקים</span>
-                    <span class="text-3xl">🎮</span>
+                    <span>🎮</span>
                 </button>
-            </div>
-        `;
+            </div>`;
     }).catch((err) => {
         console.error(err);
         btn.innerText = "שליחת דיווח 📤";
         btn.disabled = false;
-        alert("הייתה תקלה בשליחה. בדוק את החיבור לאינטרנט.");
+        alert("הייתה תקלה בשליחה. נסה שוב.");
     });
 };
