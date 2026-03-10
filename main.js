@@ -287,7 +287,7 @@ function renderQuiz(app) {
                 <div class="grid gap-4 pb-10">
                     <button onclick="state.quizIndex=0; state.correctAnswers=0; state.masteryScore=0; render();" 
                         class="py-5 bg-blue-600 text-white rounded-2xl text-xl font-black shadow-lg">תרגול חוזר 🔄</button>
-                    <button onclick="state.masteryScore=0; state.screen='menu'; render();" 
+                    <button onclick="state.screen='menu'; render();" 
                         class="py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold">חזרה לתפריט 🏠</button>
                 </div>
             </div>`;
@@ -326,10 +326,17 @@ function renderQuiz(app) {
             document.body.appendChild(form);
             form.submit();
 
+            // --- כאן התיקון הקריטי: הזרקת כפתור ההמשך למשחקים ---
             setTimeout(() => {
                 document.getElementById('reportSection').innerHTML = `
-                    <div class="p-6 bg-green-100 text-green-700 rounded-xl font-bold text-center animate-fade-in">
-                        הדיווח נשלח בהצלחה למורה 🕊️
+                    <div class="space-y-4 animate-fade-in text-center">
+                        <div class="p-4 bg-green-100 text-green-700 rounded-xl font-bold border-2 border-green-200">
+                            הדיווח נשלח בהצלחה למורה 🕊️
+                        </div>
+                        <button onclick="state.screen='menu'; render();" 
+                            class="w-full py-5 bg-blue-600 text-white rounded-2xl text-2xl font-black shadow-xl hover:bg-blue-700 active:scale-95 transition-all">
+                            המשך למשחקים 🎮 ⮕
+                        </button>
                     </div>`;
                 if (form.parentNode) document.body.removeChild(form);
             }, 1000);
@@ -342,7 +349,6 @@ function renderQuiz(app) {
         state.quizOptions = shuffle([cur.heb, ...shuffle(state.words.filter(x => x.id !== cur.id).map(x => x.heb)).slice(0, 3)]);
     }
     
-    // החלק שמתקן את הריצוד וצובע את הכפתורים:
     app.innerHTML = `
         <div class="text-center space-y-6 w-full max-w-sm px-2 mt-4 mx-auto animate-fade-in min-h-[450px]">
             ${renderHeader(`אתגר: ${state.quizIndex + 1}/${state.words.length}`)}
@@ -753,3 +759,4 @@ function submitFinalReport(score) {
 
 // חיבור הפונקציה לחלון הגלובלי
 window.submitFinalReport = submitFinalReport;
+
