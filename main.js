@@ -724,7 +724,6 @@ window.submitFinalReport = (score) => {
         date: new Date().toLocaleString('he-IL')
     };
 
-    // הכתובת של ה-Google Script שלך
     const scriptURL = 'YOUR_GOOGLE_SCRIPT_URL_HERE'; 
 
     const btn = event.target;
@@ -738,13 +737,13 @@ window.submitFinalReport = (score) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     }).then(() => {
-        // שמירת הציון בזיכרון המקומי כדי שהמשחקים ייפתחו
+        // --- עדכון הציון ושחרור המשחקים ---
         state.masteryScore = score;
         saveToLocal();
 
-        // עדכון התצוגה לכפתור מעבר למשחקים
+        // --- הוספת כפתור ה"המשך" המבוקש ---
         document.getElementById('reportSection').innerHTML = `
-            <div class="space-y-4 animate-fade-in text-center">
+            <div class="space-y-4 animate-fade-in text-center mt-4">
                 <div class="p-4 bg-green-100 text-green-700 rounded-xl font-bold border-2 border-green-200">
                     הדיווח נשלח בהצלחה! ✅
                 </div>
@@ -754,12 +753,13 @@ window.submitFinalReport = (score) => {
                 </button>
             </div>`;
     }).catch((err) => {
-        console.error("שגיאת שליחה:", err);
+        console.error(err);
         btn.innerText = "שליחת דיווח 📤";
         btn.disabled = false;
         alert("הייתה תקלה בשליחה. נסה שוב.");
     });
 };
+
 
 
 
