@@ -10,12 +10,12 @@ let state = {
     quizFeedback: { index: -1, status: null, correctIndex: -1 },
     memoryGame: { cards: [], flipped: [], pairs: 0, steps: 0, isProcessing: false },
     connect4: { board: Array(6).fill(null).map(() => Array(7).fill(null)), turn: 1, q: null, canDrop: false, isAnswering: false, showQuestionPrompt: true, fallingToken: null, isAiTurn: false, isPvP: true, feedback: { status: null, selectedIdx: -1 } },
-    // הוספתי כאן את הסטייט של הבועות
+    // כאן הוספנו את הגדרות המשחק החדש במקום הישן
     sbGame: {
-        active: false, player: { x: 0, y: 0, speed: 8 },
+        active: false, player: { x: 0, y: 0, w: 70, h: 45, speed: 8 },
         bubbles: [], bullets: [], metalBalls: [], stars: [],
         currentWord: '', translation: '', charIndex: 0,
-        lives: 5, score: 0, wordPool: []
+        lives: 5, score: 0, shake: 0, wordPool: []
     },
     winner: null,
     showShareModal: false
@@ -76,7 +76,7 @@ function renderInput(app) {
                 <input type="text" id="listName" value="${state.listName}" class="w-full p-4 bg-slate-100 rounded-2xl mb-4 font-bold border-2 border-slate-200">
                 <label class="block text-slate-500 font-bold mb-2">רשימת מילים (אנגלית:עברית)</label>
                 <textarea id="wordsInput" class="w-full h-48 p-4 bg-slate-100 rounded-2xl mb-4 font-mono text-sm border-2 border-slate-200" placeholder="apple:תפוח\nbanana:בננה">${state.inputText}</textarea>
-                <button onclick="saveWords()" class="w-full bg-green-600 text-white py-4 rounded-2xl font-black text-xl shadow-lg">שמור ועדכן</button>
+                <button onclick="saveWords()" class="w-full bg-green-600 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-green-700 transition-colors">שמור ועדכן</button>
             </div>
             <button onclick="state.screen='menu'; render()" class="w-full text-slate-400 font-bold py-2">ביטול וחזרה</button>
         </div>
@@ -135,7 +135,7 @@ function renderMenu(app) {
     `;
 }
 
-// --- SPACE BUBBLES GAME LOGIC ---
+// --- לוגיקת משחק בועות בחלל (Space Bubbles) ---
 function startSpaceBubbles() {
     state.screen = 'spacebubbles';
     state.sbGame.active = true;
@@ -219,12 +219,15 @@ function renderSpaceBubbles(app) {
         ctx.fillStyle = '#020617';
         ctx.fillRect(0,0,canvas.width, canvas.height);
         
+        // כוכבים
         s.stars.forEach(st => { ctx.fillStyle = "white"; ctx.globalAlpha = 0.5; ctx.fillRect(st.x, st.y, st.s, st.s); st.y += st.speed; if(st.y > canvas.height) st.y = 0; });
         ctx.globalAlpha = 1;
 
+        // תנועת שחקן
         if(mL && s.player.x > 0) s.player.x -= s.player.speed;
         if(mR && s.player.x < canvas.width - 70) s.player.x += s.player.speed;
 
+        // ציור חללית עם קוקפיט תכלת
         const px = s.player.x, py = s.player.y;
         ctx.fillStyle = "#1e293b"; 
         ctx.beginPath(); 
@@ -235,6 +238,7 @@ function renderSpaceBubbles(app) {
         ctx.arc(px+35, py+25, 12, Math.PI, 0); 
         ctx.fill();
 
+        // יצירת אלמנטים (קצב אחיד ודליל)
         if(Math.random() < 0.012) {
             if(Math.random() < 0.15) { 
                 s.metalBalls.push({x: Math.random()*(canvas.width-60)+30, y: -50, speed: 1.5});
@@ -244,6 +248,7 @@ function renderSpaceBubbles(app) {
             }
         }
 
+        // עדכון בועות
         s.bubbles.forEach((b, i) => {
             b.y += b.speed;
             ctx.fillStyle = `hsla(${b.hue}, 70%, 50%, 0.4)`; ctx.beginPath(); ctx.arc(b.x, b.y, 25, 0, Math.PI*2); ctx.fill();
@@ -251,6 +256,7 @@ function renderSpaceBubbles(app) {
             if(b.y > canvas.height + 50) s.bubbles.splice(i, 1);
         });
 
+        // עדכון כדורי מתכת (אפקט מטאלי)
         s.metalBalls.forEach((m, i) => {
             m.y += m.speed; 
             const grad = ctx.createRadialGradient(m.x-8, m.y-8, 2, m.x, m.y, 28);
@@ -259,6 +265,7 @@ function renderSpaceBubbles(app) {
             if(Math.hypot(px+35-m.x, py+20-m.y) < 45) { s.lives--; s.metalBalls.splice(i, 1); updateUI(); if(s.lives <= 0) endGame(); }
         });
 
+        // עדכון יריות
         s.bullets.forEach((bul, bi) => {
             bul.y -= 12; ctx.fillStyle = "#fbbf24"; ctx.fillRect(bul.x-2, bul.y, 4, 15);
             s.bubbles.forEach((bub, bbi) => {
@@ -279,7 +286,255 @@ function renderSpaceBubbles(app) {
     loop();
 }
 
-// --- QUIZ LOGIC (ORIGINAL) ---
+// --- משחק זיכרון (המקורי שלך) ---
+function startMemory() {
+    state.screen = 'memory';
+    const gameWords = shuffle([...state.words]).slice(0, 8);
+    let cards = [];
+    gameWords.forEach((w, i) => {
+        cards.push({ id: i * 2, content: w.eng, type: 'eng', match: i, flipped: false, solved: false });
+        cards.push({ id: i * 2 + 1, content: w.heb, type: 'heb', match: i, flipped: false, solved: false });
+    });
+    state.memoryGame = { cards: shuffle(cards), flipped: [], pairs: 0, steps: 0, isProcessing: false };
+    render();
+}
+
+function renderMemory(app) {
+    const mg = state.memoryGame;
+    app.className = 'min-h-screen bg-slate-50 p-4 font-assistant';
+    app.innerHTML = `
+        <div class="max-w-md mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="state.screen='menu'; render()" class="text-slate-400 font-bold">יציאה</button>
+                <div class="font-black text-purple-600 text-xl">צעדים: ${mg.steps}</div>
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+                ${mg.cards.map(card => `
+                    <div onclick="flipMemory(${card.id})" 
+                         class="aspect-square rounded-xl cursor-pointer transition-all duration-300 transform ${card.flipped || card.solved ? 'rotate-y-180' : ''} shadow-sm">
+                        <div class="w-full h-full rounded-xl flex items-center justify-center font-bold text-sm p-1 text-center
+                             ${card.solved ? 'bg-green-100 text-green-600' : card.flipped ? 'bg-white text-purple-600 border-2 border-purple-200' : 'bg-purple-600 text-white'}">
+                            ${card.flipped || card.solved ? card.content : '?'}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function flipMemory(id) {
+    const mg = state.memoryGame;
+    if (mg.isProcessing) return;
+    const card = mg.cards.find(c => c.id === id);
+    if (card.flipped || card.solved || mg.flipped.length === 2) return;
+
+    card.flipped = true;
+    mg.flipped.push(card);
+    render();
+
+    if (mg.flipped.length === 2) {
+        mg.steps++;
+        mg.isProcessing = true;
+        const [c1, c2] = mg.flipped;
+        if (c1.match === c2.match) {
+            c1.solved = true; c2.solved = true;
+            mg.pairs++;
+            mg.flipped = [];
+            mg.isProcessing = false;
+            if (mg.pairs === 8 || mg.pairs === state.words.length || mg.pairs === mg.cards.length/2) {
+                setTimeout(() => {
+                    triggerConfetti();
+                    state.winner = { type: 'memory', msg: 'זיכרון מעולה!', subMsg: `סיימת ב-${mg.steps} צעדים` };
+                    render();
+                }, 500);
+            }
+            render();
+        } else {
+            setTimeout(() => {
+                c1.flipped = false; c2.flipped = false;
+                mg.flipped = [];
+                mg.isProcessing = false;
+                render();
+            }, 1000);
+        }
+    }
+}
+
+// --- משחק 4 בשורה (המקורי שלך) ---
+function startC4(isPvP = true) {
+    state.screen = 'connect4';
+    state.connect4 = {
+        board: Array(6).fill(null).map(() => Array(7).fill(null)),
+        turn: 1,
+        q: null,
+        canDrop: false,
+        isAnswering: false,
+        showQuestionPrompt: true,
+        fallingToken: null,
+        isAiTurn: false,
+        isPvP: isPvP,
+        feedback: { status: null, selectedIdx: -1 }
+    };
+    render();
+}
+
+function renderConnect4(app) {
+    const c = state.connect4;
+    app.className = 'min-h-screen bg-slate-900 p-4 font-assistant text-white';
+    
+    let statusMsg = c.turn === 1 ? "תור השחקן האדום" : (c.isPvP ? "תור השחקן הצהוב" : "תור המחשב...");
+    
+    app.innerHTML = `
+        <div class="max-w-md mx-auto h-full flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="state.screen='menu'; render()" class="text-slate-400 font-bold">יציאה</button>
+                <div class="bg-slate-800 px-4 py-2 rounded-full font-bold border border-slate-700">${statusMsg}</div>
+            </div>
+
+            <div class="bg-blue-700 p-2 rounded-2xl shadow-2xl relative mb-6">
+                <div class="grid grid-cols-7 gap-2 bg-blue-800 p-2 rounded-xl">
+                    ${[0,1,2,3,4,5,6].map(col => `
+                        <div onclick="handleC4Click(${col})" class="flex flex-col gap-2 cursor-pointer">
+                            ${[0,1,2,3,4,5].map(row => {
+                                const cell = c.board[row][col];
+                                return `<div class="aspect-square rounded-full bg-slate-900/50 flex items-center justify-center relative">
+                                    ${cell === 1 ? '<div class="w-full h-full rounded-full bg-rose-500 shadow-inner"></div>' : ''}
+                                    ${cell === 2 ? '<div class="w-full h-full rounded-full bg-amber-400 shadow-inner"></div>' : ''}
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            ${c.showQuestionPrompt ? `
+                <div class="bg-white text-slate-800 p-6 rounded-3xl animate-bounce-in shadow-2xl text-center">
+                    <p class="font-black text-xl mb-4">ענה נכון כדי לשחק!</p>
+                    <button onclick="generateC4Question()" class="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black">קבל שאלה</button>
+                </div>
+            ` : ''}
+
+            ${c.isAnswering && c.q ? `
+                <div class="bg-white text-slate-800 p-6 rounded-3xl shadow-2xl">
+                    <div class="text-center mb-6">
+                        <p class="text-slate-500 font-bold mb-1 italic">איך אומרים בעברית?</p>
+                        <h3 class="text-4xl font-black text-blue-600">${c.q.eng}</h3>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3">
+                        ${c.q.options.map((opt, i) => {
+                            let btnClass = "bg-slate-100 border-2 border-slate-200";
+                            if (c.feedback.selectedIdx === i) {
+                                btnClass = c.feedback.status === 'correct' ? "bg-green-500 text-white border-green-600" : "bg-red-500 text-white border-red-600";
+                            }
+                            return `<button onclick="checkC4Answer(${i})" class="${btnClass} p-4 rounded-2xl font-black text-lg transition-all">${opt}</button>`;
+                        }).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+function generateC4Question() {
+    const c = state.connect4;
+    const word = state.words[Math.floor(Math.random() * state.words.length)];
+    let options = [word.heb];
+    while (options.length < 4) {
+        const r = state.words[Math.floor(Math.random() * state.words.length)].heb;
+        if (!options.includes(r)) options.push(r);
+    }
+    c.q = { eng: word.eng, heb: word.heb, options: shuffle(options) };
+    c.showQuestionPrompt = false;
+    c.isAnswering = true;
+    render();
+}
+
+function checkC4Answer(idx) {
+    const c = state.connect4;
+    if (c.feedback.status) return;
+    const isCorrect = c.q.options[idx] === c.q.heb;
+    c.feedback = { status: isCorrect ? 'correct' : 'wrong', selectedIdx: idx };
+    render();
+    setTimeout(() => {
+        if (isCorrect) {
+            c.isAnswering = false;
+            c.canDrop = true;
+            c.feedback = { status: null, selectedIdx: -1 };
+        } else {
+            c.turn = c.turn === 1 ? 2 : 1;
+            c.isAnswering = false;
+            c.showQuestionPrompt = true;
+            c.feedback = { status: null, selectedIdx: -1 };
+            if (!c.isPvP && c.turn === 2) setTimeout(aiC4Move, 1000);
+        }
+        render();
+    }, 1000);
+}
+
+function handleC4Click(col) {
+    const c = state.connect4;
+    if (!c.canDrop) return;
+    for (let row = 5; row >= 0; row--) {
+        if (!c.board[row][col]) {
+            c.board[row][col] = c.turn;
+            c.canDrop = false;
+            if (checkC4Win(row, col)) {
+                setTimeout(() => {
+                    triggerConfetti();
+                    state.winner = { type: 'c4', msg: `השחקן ה${c.turn === 1 ? 'אדום' : 'צהוב'} ניצח!` };
+                    render();
+                }, 500);
+            } else {
+                c.turn = c.turn === 1 ? 2 : 1;
+                c.showQuestionPrompt = true;
+                if (!c.isPvP && c.turn === 2) setTimeout(aiC4Move, 1000);
+            }
+            render();
+            return;
+        }
+    }
+}
+
+function aiC4Move() {
+    const c = state.connect4;
+    const cols = [0,1,2,3,4,5,6].filter(col => !c.board[0][col]);
+    if (cols.length === 0) return;
+    const col = cols[Math.floor(Math.random() * cols.length)];
+    for (let row = 5; row >= 0; row--) {
+        if (!c.board[row][col]) {
+            c.board[row][col] = 2;
+            if (checkC4Win(row, col)) {
+                state.winner = { type: 'c4', msg: 'המחשב ניצח!' };
+            } else {
+                c.turn = 1;
+                c.showQuestionPrompt = true;
+            }
+            render();
+            return;
+        }
+    }
+}
+
+function checkC4Win(r, c) {
+    const b = state.connect4.board;
+    const t = b[r][c];
+    const check = (dr, dc) => {
+        let count = 1;
+        for (let i = 1; i < 4; i++) {
+            let nr = r + dr * i, nc = c + dc * i;
+            if (nr >= 0 && nr < 6 && nc >= 0 && nc < 7 && b[nr][nc] === t) count++; else break;
+        }
+        for (let i = 1; i < 4; i++) {
+            let nr = r - dr * i, nc = c - dc * i;
+            if (nr >= 0 && nr < 6 && nc >= 0 && nc < 7 && b[nr][nc] === t) count++; else break;
+        }
+        return count >= 4;
+    };
+    return check(0, 1) || check(1, 0) || check(1, 1) || check(1, -1);
+}
+
+// --- לוגיקת QUIZ (המקורי שלך) ---
 function startQuiz() {
     state.screen = 'quiz';
     state.quizIndex = 0;
@@ -366,21 +621,62 @@ function renderQuizSummary(score) {
     `;
 }
 
-// --- SYSTEM REPORTS (ORIGINAL) ---
+// --- דיווחים (המקורי שלך) ---
 function submitFinalReport(score) {
     const nameInput = document.getElementById('studentName');
     const classInput = document.getElementById('studentClass');
     const reportArea = document.getElementById('reportSection');
 
-    if (!nameInput || !classInput) {
-        console.error("לא נמצאו שדות קלט!");
-        return;
-    }
-
+    if (!nameInput || !classInput) return;
     state.masteryScore = score;
     saveToLocal();
 
     if (reportArea) {
         reportArea.innerHTML = `
             <div style="background:#e6fffa; padding:20px; border-radius:15px; border:2px solid #38b2ac; margin-top:20px; text-align:center;">
-                <p style="color:#2c7a7b; font-
+                <p style="color:#2c7a7b; font-weight:bold; margin-bottom:15px;">הדיווח מוכן לשליחה!</p>
+                <button onclick="state.screen='menu'; render();" 
+                        style="background:#3182ce; color:white; border:none; padding:15px 30px; border-radius:10px; font-weight:bold; cursor:pointer; width:100%;">
+                    המשך למשחקים 🎮
+                </button>
+            </div>
+        `;
+    }
+
+    const data = {
+        name: nameInput.value,
+        class: classInput.value,
+        unit: state.listName,
+        score: score + "%"
+    };
+
+    fetch('https://script.google.com/macros/s/AKfycbzf4YFfFIn27m1l5S2jR7EPrW-vSjY-4Ois6vLofLz3D8y7p8o3Ocll_B_G3QW_pA09/exec', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(data)
+    }).catch(e => {});
+}
+
+// --- מסך ניצחון והפעלה (המקורי שלך) ---
+function renderWinScreen(app) {
+    const win = state.winner;
+    app.innerHTML = `
+        <div class="fixed inset-0 flex items-center justify-center bg-black/80 z-[300] px-4">
+            <div class="text-center p-10 rounded-[3rem] max-w-sm w-full animate-fade-in bg-white shadow-2xl ${win.glowClass || ''}">
+                <h2 class="text-4xl font-black mb-6 text-blue-700">${win.msg}</h2>
+                <p class="text-xl font-black mb-10 text-gray-800">${win.subMsg || ''}</p>
+                <div class="space-y-4">
+                    <button onclick="state.winner=null; if(state.screen==='spacebubbles')startSpaceBubbles(); else if(state.screen==='memory')startMemory(); else if(state.screen==='connect4')startC4(state.connect4.isPvP); else render();" 
+                            class="bg-blue-600 text-white py-5 rounded-2xl text-2xl font-black w-full shadow-lg">שחק שוב 🔄</button>
+                    <button onclick="state.winner=null; state.screen='menu'; render()" 
+                            class="bg-white text-gray-800 py-4 rounded-2xl text-xl font-black w-full shadow">חזרה לתפריט 🏠</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+window.onload = () => {
+    loadFromLocal();
+    render();
+};
